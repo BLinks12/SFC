@@ -4,30 +4,44 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solana Fight Club</title>
-  
+
   <!-- Fuente "VT323" para estilo retro hacker -->
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-  
+
   <style>
-    /* =========== ESTILOS GENERALES =========== */
+    /* ====== RESET BÁSICO ====== */
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ====== ESTILO GLOBAL ====== */
     body {
       background-color: black;
       color: #33ff33;
-      font-family: 'VT323', monospace;
+      font-family: 'VT323', monospace; 
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      margin: 0;
-      padding-top: 40px;
-      min-height: 100vh; 
+      justify-content: flex-start; /* No centramos vertical para que no crezca a 100vh */
     }
+
+    /* ====== CONTENEDOR PRINCIPAL ====== */
+    #container {
+      width: 90%;
+      max-width: 600px;
+      margin: 40px auto; /* Ajusta este margen para más o menos separación vertical */
+      text-align: center;
+    }
+
+    /* ====== TÍTULO ====== */
     h1 {
       text-shadow: 0 0 10px #33ff33, 0 0 20px #33ff33;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       font-size: 2rem;
     }
+
     p, ul {
       margin: 5px 0;
     }
@@ -36,7 +50,16 @@
       padding: 0;
     }
 
-    /* =========== CAMPOS DE TEXTO Y BOTONES =========== */
+    /* ====== CAJAS ASCII ====== */
+    .ascii-box {
+      border: 1px dashed #33ff33;
+      padding: 15px 20px;
+      margin: 20px 0; /* Separa cada caja verticalmente */
+      text-align: center;
+      white-space: pre; /* Para conservar saltos de línea de spinner ASCII */
+    }
+
+    /* ====== INPUTS Y BOTONES ====== */
     input, button {
       background-color: black;
       color: #33ff33;
@@ -53,42 +76,22 @@
       background-color: #005500;
     }
 
-    /* =========== SECCIONES PRINCIPALES =========== */
-    #container {
-      width: 90%;
-      max-width: 600px;
-      margin: 0 auto;
-      text-align: center;
-    }
+    /* ====== SECCIONES QUE SE OCULTAN/MUESTRAN DINÁMICAMENTE ====== */
     #loading, #game, #resetButtonContainer {
       display: none;
       margin-top: 20px;
     }
 
-    /* Marco ASCII */
-    .ascii-box {
-      border: 1px dashed #33ff33;
-      padding: 10px 20px;
-      margin: 20px auto;
-      text-align: center;
-      white-space: pre; /* Para usar ASCII spinner y conservar saltos de línea */
-    }
-
-    /* =========== SECCIÓN BET (BLOQUEADA) =========== */
-    #betSection {
-      margin-top: 20px;
-      width: 80%;
-    }
-    /* Aspecto de “bloqueado”: opacidad baja y sin eventos de ratón */
+    /* ====== “LOCKED FEATURE” ====== */
     .locked-feature {
       opacity: 0.5;
-      pointer-events: none;
+      pointer-events: none; /* para que no se pueda clicar */
     }
     .locked-message {
-      color: #ff3333; /* Texto en rojo para destacar el bloqueo */
+      color: #ff3333; /* texto rojo para resaltar el bloqueo */
     }
 
-    /* =========== ANIMACIONES DE PARPADEO =========== */
+    /* ====== ANIMACIONES Y EFECTOS ====== */
     .blink {
       animation: blink 1s infinite;
     }
@@ -98,20 +101,20 @@
       100% { opacity: 0; }
     }
 
-    /* =========== SPINNER ASCII =========== */
+    /* Spinner ASCII */
     #asciiSpinner {
       font-size: 2rem;
       line-height: 1;
       margin: 0 auto;
     }
 
-    /* =========== RESALTAR MOVIMIENTO SELECCIONADO =========== */
+    /* Resaltar movimiento seleccionado */
     .selected-move {
       background-color: #005500;
       border: 2px solid #00ff00;
     }
 
-    /* =========== ESTILOS DE RESULTADO FINAL =========== */
+    /* Texto de resultado final */
     .victory-text {
       font-size: 1.8rem;
       color: #33ff33;
@@ -170,7 +173,7 @@
     </div>
   </div>
 
-  <!-- Audios para ganar/perder una ronda -->
+  <!-- Audios para ganar/perder una ronda (reemplaza rutas si lo deseas) -->
   <audio id="winSound" src="win-sound.mp3" preload="auto"></audio>
   <audio id="loseSound" src="lose-sound.mp3" preload="auto"></audio>
 
@@ -188,7 +191,6 @@
     const gameStatus           = document.getElementById('gameStatus');
     const resetButton          = document.getElementById('resetButton');
     const resetButtonContainer = document.getElementById('resetButtonContainer');
-    const betSection           = document.getElementById('betSection');
 
     // Audios
     const winSound  = document.getElementById('winSound');
