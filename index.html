@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Fight Club</title>
+  
+  <!-- Fuente "VT323" para estilo retro hacker -->
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  
+  <style>
+    /* =========== ESTILOS GENERALES =========== */
+    body {
+      background-color: black;
+      color: #33ff33;
+      font-family: 'VT323', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      margin: 0;
+      padding-top: 40px;
+      min-height: 100vh; 
+    }
+    h1 {
+      text-shadow: 0 0 10px #33ff33, 0 0 20px #33ff33;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+    p, ul {
+      margin: 5px 0;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    /* =========== CAMPOS DE TEXTO Y BOTONES =========== */
+    input, button {
+      background-color: black;
+      color: #33ff33;
+      border: 1px solid #33ff33;
+      padding: 10px;
+      margin: 5px;
+      font-family: 'VT323', monospace;
+      cursor: pointer;
+    }
+    input:focus, button:focus {
+      outline: none;
+    }
+    button:hover {
+      background-color: #005500;
+    }
+
+    /* =========== SECCIONES PRINCIPALES =========== */
+    #container {
+      width: 90%;
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    #loading, #game, #resetButtonContainer {
+      display: none;
+      margin-top: 20px;
+    }
+
+    /* Marco ASCII */
+    .ascii-box {
+      border: 1px dashed #33ff33;
+      padding: 10px 20px;
+      margin: 20px auto;
+      text-align: center;
+      white-space: pre; /* Para usar ASCII spinner y conservar saltos de línea */
+    }
+
+    /* =========== SECCIÓN BET (BLOQUEADA) =========== */
+    #betSection {
+      margin-top: 20px;
+      width: 80%;
+    }
+    /* Aspecto de “bloqueado”: opacidad baja y sin eventos de ratón */
+    .locked-feature {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .locked-message {
+      color: #ff3333; /* Texto en rojo para destacar el bloqueo */
+    }
+
+    /* =========== ANIMACIONES DE PARPADEO =========== */
+    .blink {
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%   { opacity: 0; }
+      50%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* =========== SPINNER ASCII =========== */
+    #asciiSpinner {
+      font-size: 2rem;
+      line-height: 1;
+      margin: 0 auto;
+    }
+
+    /* =========== RESALTAR MOVIMIENTO SELECCIONADO =========== */
+    .selected-move {
+      background-color: #005500;
+      border: 2px solid #00ff00;
+    }
+
+    /* =========== ESTILOS DE RESULTADO FINAL =========== */
+    .victory-text {
+      font-size: 1.8rem;
+      color: #33ff33;
+      animation: blink 1.2s infinite;
+      margin-top: 20px;
+    }
+    .defeat-text {
+      font-size: 1.8rem;
+      color: #ff3333;
+      animation: blink 1.2s infinite;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="container">
+    <h1>SOLANA FIGHT CLUB</h1>
+
+    <!-- Sección inicial: ingresar wallet y pulsar "Fight!" -->
+    <p>Enter your wallet to start the battle:</p>
+    <input type="text" id="walletInput" placeholder="Enter Solana wallet">
+    <button id="startButton">Fight!</button>
+
+    <!-- Sección de búsqueda: spinner ASCII + lista de rivales ficticios -->
+    <div id="loading" class="ascii-box">
+      <p>Searching for a rival...</p>
+      <ul id="possibleRivals"></ul>
+      <div id="asciiSpinner"></div>
+    </div>
+
+    <!-- Sección de juego principal -->
+    <div id="game" class="ascii-box">
+      <p>You are battling against: <span id="rivalWallet"></span></p>
+      
+      <p>Choose your move:</p>
+      <button class="moveButton" data-move="rock">Rock</button>
+      <button class="moveButton" data-move="paper">Paper</button>
+      <button class="moveButton" data-move="scissors">Scissors</button>
+
+      <p>Your score: <span id="yourScore">0</span> | Rival's score: <span id="rivalScore">0</span></p>
+      <p id="gameStatus"></p>
+    </div>
+
+    <!-- Botón de reinicio -->
+    <div id="resetButtonContainer">
+      <button id="resetButton">Play Again</button>
+    </div>
+
+    <!-- Sección de apuesta (locked) -->
+    <div id="betSection" class="ascii-box locked-feature">
+      <p>Bet SOLANA against your opponent!</p>
+      <p class="locked-message">
+        This feature is locked. It unlocks at 100k market cap!
+      </p>
+    </div>
+  </div>
+
+  <!-- Audios para ganar/perder una ronda -->
+  <audio id="winSound" src="win-sound.mp3" preload="auto"></audio>
+  <audio id="loseSound" src="lose-sound.mp3" preload="auto"></audio>
+
+  <script>
+    // ========= OBTENER ELEMENTOS DEL DOM =========
+    const startButton          = document.getElementById('startButton');
+    const loading              = document.getElementById('loading');
+    const possibleRivalsList   = document.getElementById('possibleRivals');
+    const asciiSpinner         = document.getElementById('asciiSpinner');
+    const game                 = document.getElementById('game');
+    const walletInput          = document.getElementById('walletInput');
+    const rivalWalletDisplay   = document.getElementById('rivalWallet');
+    const yourScoreDisplay     = document.getElementById('yourScore');
+    const rivalScoreDisplay    = document.getElementById('rivalScore');
+    const gameStatus           = document.getElementById('gameStatus');
+    const resetButton          = document.getElementById('resetButton');
+    const resetButtonContainer = document.getElementById('resetButtonContainer');
+    const betSection           = document.getElementById('betSection');
+
+    // Audios
+    const winSound  = document.getElementById('winSound');
+    const loseSound = document.getElementById('loseSound');
+
+    // ========= VARIABLES GLOBALES =========
+    let yourScore    = 0;
+    let rivalScore   = 0;
+    let spinnerIndex = 0;
+    let interval, rivalInterval;
+    let gameOver     = false;
+
+    // Spinner ASCII: tres frames para rotar
+    const spinnerFrames = ["/-\\", "|*|", "\\-/"];
+
+    // ========= FUNCIONES AUXILIARES =========
+    function randomWallet() {
+      const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+      let wallet = '';
+      for (let i = 0; i < 44; i++) {
+        wallet += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return wallet;
+    }
+
+    function getRandomMove() {
+      const moves = ['rock', 'paper', 'scissors'];
+      return moves[Math.floor(Math.random() * moves.length)];
+    }
+
+    function determineWinner(playerMove, rivalMove) {
+      if (playerMove === rivalMove) return 'draw';
+      if (
+        (playerMove === 'rock'     && rivalMove === 'scissors') ||
+        (playerMove === 'paper'    && rivalMove === 'rock')     ||
+        (playerMove === 'scissors' && rivalMove === 'paper')
+      ) {
+        return 'player';
+      } else {
+        return 'rival';
+      }
+    }
+
+    function resetGame() {
+      // Resetear variables
+      yourScore = 0;
+      rivalScore = 0;
+      gameOver = false;
+
+      // Resetear UI
+      yourScoreDisplay.textContent = '0';
+      rivalScoreDisplay.textContent = '0';
+      gameStatus.textContent = '';
+      document.querySelectorAll('.moveButton').forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('selected-move');
+      });
+      resetButtonContainer.style.display = 'none';
+    }
+
+    // ========= LISTENERS PRINCIPALES =========
+    startButton.addEventListener('click', () => {
+      const wallet = walletInput.value.trim();
+      if (!wallet) {
+        alert('Please enter a valid wallet address.');
+        return;
+      }
+
+      // Ocultar input y botón
+      startButton.style.display = 'none';
+      walletInput.style.display  = 'none';
+
+      // Mostrar sección de Loading
+      loading.style.display = 'block';
+
+      // Activar spinner ASCII
+      interval = setInterval(() => {
+        asciiSpinner.textContent = spinnerFrames[spinnerIndex];
+        spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+      }, 200);
+
+      // Lista de rivales ficticios
+      rivalInterval = setInterval(() => {
+        const li = document.createElement('li');
+        li.textContent = randomWallet();
+        possibleRivalsList.appendChild(li);
+
+        // Eliminar el primer rival si hay más de 5
+        if (possibleRivalsList.children.length > 5) {
+          possibleRivalsList.removeChild(possibleRivalsList.children[0]);
+        }
+      }, 800);
+
+      // Tiempo aleatorio de 3 a 6 segundos
+      const randomDelay = Math.floor(Math.random() * 3000) + 3000;
+
+      setTimeout(() => {
+        // Búsqueda finaliza
+        clearInterval(interval);
+        clearInterval(rivalInterval);
+        loading.style.display = 'none';
+
+        // Mostramos sección de juego
+        game.style.display = 'block';
+        rivalWalletDisplay.textContent = randomWallet();
+
+      }, randomDelay);
+    });
+
+    // Listener para cada botón de movimiento
+    document.querySelectorAll('.moveButton').forEach(button => {
+      button.addEventListener('click', () => {
+        if (gameOver) return;
+
+        // Resaltar la elección
+        document.querySelectorAll('.moveButton').forEach(btn => {
+          btn.classList.remove('selected-move');
+        });
+        button.classList.add('selected-move');
+
+        const playerMove = button.getAttribute('data-move');
+        gameStatus.textContent = 'Waiting for rival to choose...';
+
+        // Simular la elección del rival con un pequeño retraso
+        setTimeout(() => {
+          const rivalMove = getRandomMove();
+          const result = determineWinner(playerMove, rivalMove);
+
+          if (result === 'player') {
+            yourScore++;
+            winSound.play(); // Sonido de victoria
+            gameStatus.textContent = `You chose ${playerMove}, rival chose ${rivalMove}. You win this round!`;
+          } else if (result === 'rival') {
+            rivalScore++;
+            loseSound.play(); // Sonido de derrota
+            gameStatus.textContent = `You chose ${playerMove}, rival chose ${rivalMove}. Rival wins this round!`;
+          } else {
+            gameStatus.textContent = `You both chose ${playerMove}. It's a draw!`;
+          }
+
+          yourScoreDisplay.textContent = yourScore;
+          rivalScoreDisplay.textContent = rivalScore;
+
+          if (yourScore >= 10 || rivalScore >= 10) {
+            gameOver = true;
+            document.querySelectorAll('.moveButton').forEach(btn => btn.disabled = true);
+
+            if (yourScore >= 10) {
+              gameStatus.innerHTML = `<span class="victory-text">YOU WIN THE BATTLE!</span>`;
+            } else {
+              gameStatus.innerHTML = `<span class="defeat-text">RIVAL WINS THE BATTLE!</span>`;
+            }
+            resetButtonContainer.style.display = 'block';
+          }
+        }, 2000);
+      });
+    });
+
+    // Listener del botón para reiniciar la partida
+    resetButton.addEventListener('click', () => {
+      resetGame();
+      // Ocultar sección de juego, volver a mostrar input
+      game.style.display = 'none';
+      startButton.style.display = 'inline-block';
+      walletInput.style.display  = 'inline-block';
+      possibleRivalsList.innerHTML = '';
+      asciiSpinner.textContent = '';
+    });
+  </script>
+</body>
+</html>
